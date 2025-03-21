@@ -1,5 +1,10 @@
 import * as core from '@actions/core'
-import { wait } from './wait.js'
+import { Profile } from 'appstore-connect-sdk/openapi'
+import fs from 'fs'
+import path from 'path'
+import os from 'os'
+
+import { fetch_provisioning_profile } from './asc_api.js'
 
 /**
  * The main function for the action.
@@ -7,19 +12,61 @@ import { wait } from './wait.js'
  * @returns Resolves when the action is complete.
  */
 export async function run(): Promise<void> {
+  const issuer_id = core.getInput('issuer-id')
+  const private_key_id = core.getInput('private-key-id')
+  const private_key = core.getInput('private-key')
+  const profile_type = core.getInput('profile-type')
+  const bundle_id: string = core.getInput('bundle-id')
+  const save_to_current_dir = core.getInput('save-to-current-dir')
+  const save_to_provisioning_profiles_dir = core.getInput(
+    'save-to-provisioning-profiles-dir'
+  )
+
   try {
-    const ms: string = core.getInput('milliseconds')
+    const profile: Profile | undefined = await fetch_provisioning_profile(
+      issuer_id,
+      private_key_id,
+      private_key,
+      profile_type,
+      bundle_id
+    )
+    if (!profile) {
+      core.setFailed('❌ No provisioning profile found.')
+      return
+    }
 
-    // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    core.debug(`Waiting ${ms} milliseconds ...`)
+    // 📌 获取 Profile 数据 & 生成文件名
+    const profileName = (profile.attributes?.name ?? '').replace(/\s+/g, '_') // 替换空格
+    const profileData = Buffer.from(
+      profile.attributes?.profileContent ?? '',
+      'base64'
+    )
+    const fileName = `${profileName}.mobileprovision`
 
-    // Log the current timestamp, wait, then log the new timestamp
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
+    // ✅ 保存到当前目录
+    if (save_to_current_dir) {
+      const currentDirPath = path.join(process.cwd(), fileName)
+      fs.writeFileSync(currentDirPath, profileData)
+      core.info(`✅ Saved to: ${currentDirPath}`)
+    }
 
-    // Set outputs for other workflow steps to use
-    core.setOutput('time', new Date().toTimeString())
+    // ✅ 保存到 ~/Library/MobileDevice/Provisioning Profiles/
+    if (save_to_provisioning_profiles_dir) {
+      const provisioningProfilesDir = path.join(
+        os.homedir(),
+        'Library/MobileDevice/Provisioning Profiles'
+      )
+      if (!fs.existsSync(provisioningProfilesDir)) {
+        fs.mkdirSync(provisioningProfilesDir, { recursive: true })
+      }
+      const provisioningProfilePath = path.join(
+        provisioningProfilesDir,
+        fileName
+      )
+      fs.writeFileSync(provisioningProfilePath, profileData)
+      core.info(`✅ Saved to: ${provisioningProfilePath}`)
+    }
+    core.info('🎉 Provisioning profile download complete.')
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof Error) core.setFailed(error.message)

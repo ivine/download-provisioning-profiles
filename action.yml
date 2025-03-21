@@ -1,6 +1,6 @@
-name: The name of your action here
-description: Provide a description here
-author: Your name or organization here
+name: 'Download Apple Provisioning Profiles'
+description: 'Downloads an Apple Provisioning Profiles from the AppStore Connect API'
+author: ivine
 
 # Add your action's branding here. This will appear on the GitHub Marketplace.
 branding:
@@ -9,15 +9,41 @@ branding:
 
 # Define your inputs here.
 inputs:
-  milliseconds:
-    description: Your input description here
+  bundle-id:
+    description: "The bundle identifier of the application (e.g., com.example.app)."
     required: true
-    default: '1000'
+
+  profile-type:
+    description: "The type of provisioning profile to download. Options: 'IOS_APP_DEVELOPMENT | IOS_APP_STORE | IOS_APP_ADHOC | IOS_APP_INHOUSE | MAC_APP_DEVELOPMENT | MAC_APP_STORE | MAC_APP_DIRECT | TVOS_APP_DEVELOPMENT | TVOS_APP_STORE | TVOS_APP_ADHOC | TVOS_APP_INHOUSE'"
+    required: true
+    default: "IOS_APP_ADHOC"  # 默认下载 App Store 版本
+
+  issuer-id:
+    description: "The App Store Connect API Key Issuer Identifier."
+    required: true
+
+  private-key-id:
+    description: "The Key ID for the App Store Connect API."
+    required: true
+
+  private-key:
+    description: "The PKCS8 format Private Key for the App Store Connect API."
+    required: true
+
+  save-to-current-dir:
+    description: "Save the provisioning profile to the current working directory."
+    required: false
+    default: "true"
+
+  save-to-provisioning-profiles-dir:
+    description: "Save the provisioning profile to ~/Library/MobileDevice/Provisioning Profiles/."
+    required: false
+    default: "false"
 
 # Define your outputs here.
 outputs:
-  time:
-    description: Your output description here
+  profiles:
+    description: A JSON string containing an array of objects with the `name`, `udid`, and `type` of the provisioning profiles downloaded.
 
 runs:
   using: node20
